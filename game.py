@@ -27,8 +27,10 @@ def getImage():
     cout(0)
     w = cin()
     h = cin()
+    r = cin()
+    l = cin()
     print(w, h)
-    npimg = np.frombuffer(messi.stdout.read(w*h*1*4), np.uint8).reshape(h,w,4)[22:,:,[2, 1, 0, 3]]
+    npimg = np.frombuffer(messi.stdout.read(r*h*1*4), np.uint8).reshape(h,r,4)[22:,:w,[2, 1, 0, 3]]
     return Image.fromarray(npimg)
     
 def findArthas(img):
@@ -50,14 +52,14 @@ def findArthas(img):
         area = cv2.contourArea(cnt)
         x,y,w,h = cv2.boundingRect(cnt)
         rect_area = w*h
-        return area > 1750 and float(area)/rect_area > .6 and img[y:y+h,x:x+w].mean() > 200
+        return area > 175 and float(area)/rect_area > .6 and img[y:y+h,x:x+w].mean() > 200
     contours = list(filter(f, contours))
     print(len(contours))
     if len(contours) > 0:
         x, y, w, h = cv2.boundingRect(contours[0])
         x = x + w // 2
-        if x - img.shape[1] // 2 > 100:
-            rclick(x + 500, y + 200 + 50)
+        if x - img.shape[1] // 2 > 200:
+            rclick(500 + x, y + 200 + 50)
         else:
             rclick(500 + img.shape[1] // 2 - 50, y + 200 + 50)
     # img = np.array(Image.fromarray(img).convert("RGB"))

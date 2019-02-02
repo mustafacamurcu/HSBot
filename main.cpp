@@ -9,9 +9,10 @@ CGImageRef getFullscreen() {
 }
 
 CGImageRef getImage(int window_id) {
-	int** window_id_arr = (int**)(&window_id); 
-	CFArrayRef anArray = CFArrayCreate(NULL, (const void **)window_id_arr, 1 + 16, NULL);
-	return CGWindowListCreateImageFromArray(CGRectNull, anArray, 1);
+	int x = window_id;
+	int** window_id_arr = (int**)(&x); 
+	CFArrayRef anArray = CFArrayCreate(NULL, (const void **)window_id_arr, 1, NULL);
+	return CGWindowListCreateImageFromArray(CGRectNull, anArray, 1 + 16);
 }
 
 void imageToFile(CGImageRef img) {
@@ -70,24 +71,14 @@ void sleep(int micros) {
 }
 
 int main() {
-	//imageToFile(getImage(466));
-	/*
-	CGImageRef img = getImage(0x5e6e);
-	imageToFile(img);
-	CFDataRef rawData = CGDataProviderCopyData(CGImageGetDataProvider(img));
-	UInt8* buf = (UInt8 *) CFDataGetBytePtr(rawData);
-	CFIndex length = CFDataGetLength(rawData);
-	CFRelease(rawData);
-	*/
 	int cmd;
 	int windowId;
 	fread(&windowId, 4, 1, stdin);
-	char *c_buf = (char*)malloc(2900 * 1500 * 4);
 	while (!feof(stdin)) {
 		fread(&cmd, 4, 1, stdin);
 		if (cmd == 0) {  // Get image
-			CGImageRef img = getImage(windowId);
-			// imageToFile(img);
+			 CGImageRef img = getImage(windowId);
+			//CGImageRef img = getFullscreen();
 			CFDataRef rawData = CGDataProviderCopyData(CGImageGetDataProvider(img));
 			UInt8* buf = (UInt8 *) CFDataGetBytePtr(rawData);
 			CFIndex length = CFDataGetLength(rawData);
@@ -95,21 +86,11 @@ int main() {
 			int h = (int)CGImageGetHeight(img);
 			int r = (int)CGImageGetBytesPerRow(img) / 4;
 			int l = length;
-			for (int j = 0; j < h / 2; j++) {
-				for (int i = 0; i < w / 2; i++) {
-					int p = i + j * w / 2;
-					int q = i * 2 + j * 2 * r;
-					c_buf[4 * p] = buf[4 * q];
-					c_buf[4 * p + 1] = buf[4 * q + 1];
-					c_buf[4 * p + 2] = buf[4 * q + 2];
-					c_buf[4 * p + 3] = buf[4 * q + 3];
-				}
-			}
-			w = w / 2;
-			h = h / 2;
 			fwrite(&w, 4, 1, stdout);
 			fwrite(&h, 4, 1, stdout);
-			fwrite(c_buf, 1, w * h * 4, stdout);
+			fwrite(&r, 4, 1, stdout);
+			fwrite(&l, 4, 1, stdout);
+			fwrite(buf, 1, r * h * 4, stdout);
 			fflush(stdout);
 			CFRelease(rawData);	
 		} else if (cmd == 1) {  // Right click
@@ -127,23 +108,5 @@ int main() {
 		} else if (cmd == 5) {
 		} else if (cmd == 6) {
 		}
-	}
-	move(1000, 500);
-	// sleep(2000);
-	// findEnemy();
-	imageToFile(getImage(0x5e6e));
-	for (int i = 0; i < 100; i++) {
-
-	}
-	/*
-	for(unsigned long i = 0; i < length; i += 4) {
-		int r = buf[i];
-		int g = buf[i + 1];
-		int b = buf[i + 2];
-		std::cout << r << " " << g << " " << b << std::endl;
-	}
-	*/
-	for (int i = 0; i < 1000; i++) {
-		// std::cout << image[i] << std::endl;
 	}
 }
