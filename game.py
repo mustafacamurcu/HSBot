@@ -40,7 +40,7 @@ def findArthas(img):
     sat = arr[:,:,1]
     val = arr[:,:,2]
 
-    red_mask = (240 < hue) & (hue < 245) & (sat > 200)
+    red_mask = (240 < hue) & (hue < 255) & (sat > 90)
     blk_mask = (val < 20)
 
     mask = red_mask | blk_mask
@@ -52,20 +52,22 @@ def findArthas(img):
         area = cv2.contourArea(cnt)
         x,y,w,h = cv2.boundingRect(cnt)
         rect_area = w*h
-        return area > 175 and float(area)/rect_area > .6 and img[y:y+h,x:x+w].mean() > 200
+        return area > 140 and float(area)/rect_area > .6 and img[y:y+h,x:x+w].mean() > 200
     contours = list(filter(f, contours))
-    print(len(contours))
-    if len(contours) > 0:
+    # print(len(contours))
+    # print(img.shape)
+    if len(contours) == 1:
         x, y, w, h = cv2.boundingRect(contours[0])
         x = x + w // 2
-        if x - img.shape[1] // 2 > 200:
+        if x - img.shape[1] // 2 > 100:
             rclick(500 + x, y + 200 + 50)
         else:
             rclick(500 + img.shape[1] // 2 - 50, y + 200 + 50)
-    # img = np.array(Image.fromarray(img).convert("RGB"))
-    # cv2.drawContours(img, contours, -1, (0,255,0), 1)
-    # Image.fromarray(img).show()
-
+    '''   
+    img = np.array(Image.fromarray(img).convert("RGB"))
+    cv2.drawContours(img, contours, -1, (0,255,0), 1)
+    Image.fromarray(img).show()
+    '''
 cout(466)
 move(500, 200)
 while True:
