@@ -5,4 +5,4 @@ run: main
 	./main
 
 main: main.cpp
-	g++ main.cpp -o main -framework CoreGraphics -framework CoreFoundation -framework ImageIO -framework CoreServices
+	g++ main.cpp -o main -framework CoreGraphics -framework CoreFoundation -framework ImageIO -framework CoreServices -framework CoreAudio -framework CoreAudio

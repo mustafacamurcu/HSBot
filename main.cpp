@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <cmath>
 #include <ApplicationServices/ApplicationServices.h>
+#include <AudioToolbox/AudioToolbox.h>
 
 CGImageRef getFullscreen() {
 	return CGWindowListCreateImage(CGRectInfinite, 0, 0, 1);
@@ -22,15 +23,40 @@ void imageToFile(CGImageRef img) {
 	CGImageDestinationFinalize(destination);
 }
 
+int getMuted() {
+	AudioObjectPropertyAddress propertyAddress = {
+		kAudioHardwarePropertyDefaultOutputDevice,
+		kAudioObjectPropertyScopeGlobal,
+		kAudioObjectPropertyElementMaster
+	};
+
+	AudioDeviceID deviceID;
+	UInt32 dataSize = sizeof(deviceID);
+	AudioObjectGetPropertyData(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &dataSize, &deviceID);
+
+	AudioObjectPropertyAddress propertyAddress2 = {
+		kAudioDevicePropertyMute,
+		kAudioDevicePropertyScopeOutput,
+		1
+	};
+
+	UInt32 muted;
+	dataSize = sizeof(muted);
+	AudioObjectGetPropertyData(deviceID, &propertyAddress2, 0, NULL, &dataSize, &muted);
+	return muted;
+}
+
 void move(int x, int y) {
+	if (getMuted()) return;
 	CGEventRef mouseDownEv = CGEventCreateMouseEvent(NULL,
 			kCGEventMouseMoved,
 			CGPointMake(x, y),
 			kCGMouseButtonRight);
-	CGEventPost (kCGHIDEventTap, mouseDownEv);
+	CGEventPost(kCGHIDEventTap, mouseDownEv);
 }
 
 void rclick(int x, int y) {
+	if (getMuted()) return;
 	CGEventRef mouseDownEv = CGEventCreateMouseEvent(NULL,
 			kCGEventRightMouseDown,
 			CGPointMake(x, y),
@@ -41,6 +67,14 @@ void rclick(int x, int y) {
 			CGPointMake(x, y),
 			kCGMouseButtonRight);
 	CGEventPost(kCGHIDEventTap, mouseUpEv);
+}
+
+void key(int k) {
+	if (getMuted()) return;
+	CGEventRef cmdd = CGEventCreateKeyboardEvent(NULL, k, true);
+	CGEventRef cmdu = CGEventCreateKeyboardEvent(NULL, k, false);
+	CGEventPost(kCGHIDEventTap, cmdd);
+	CGEventPost(kCGHIDEventTap, cmdu);
 }
 
 void findEnemy() {
@@ -104,6 +138,9 @@ int main() {
 			fread(&y, 4, 1, stdin);
 			rclick(x, y);
 		} else if (cmd == 3) {
+			int k;
+			fread(&k, 4, 1, stdin);
+			key(k);
 		} else if (cmd == 4) {
 		} else if (cmd == 5) {
 		} else if (cmd == 6) {

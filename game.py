@@ -23,6 +23,10 @@ def rclick(x, y):
     cout(x)
     cout(y)
 
+def key(k):
+    cout(3)
+    cout(k)
+
 def getImage():
     cout(0)
     w = cin()
@@ -59,18 +63,21 @@ def findArthas(img):
     if len(contours) == 1:
         x, y, w, h = cv2.boundingRect(contours[0])
         x = x + w // 2
-        if x - img.shape[1] // 2 > 100:
-            rclick(500 + x, y + 200 + 50)
+        if x - img.shape[1] // 2 > 150:
+            move(500 + x, y + 200 + 50)
+            key(0)
         else:
-            rclick(500 + img.shape[1] // 2 - 50, y + 200 + 50)
+            rclick(500 + img.shape[1] // 2 - 50, 200 + img.shape[0] // 2)
     '''   
     img = np.array(Image.fromarray(img).convert("RGB"))
     cv2.drawContours(img, contours, -1, (0,255,0), 1)
     Image.fromarray(img).show()
     '''
-cout(466)
+cout(0x3fb)
 move(500, 200)
+time.sleep(5)
 while True:
+    time.sleep(0.05)
     findArthas(getImage())
 # Image.fromarray(img).show()
 
