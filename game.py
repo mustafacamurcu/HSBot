@@ -1,6 +1,7 @@
 from subprocess import Popen, PIPE
 import numpy as np
 from PIL import Image
+import colorsys
 import time
 import cv2
 
@@ -8,10 +9,14 @@ windowX = 400
 windowY = 300
 windowW = 1047
 windowH = 605
-barW = 70
-barH = 7
+barW = 68
+barH = 6
 hanzoH = 132
-hanzoR = 170
+hanzoR = 150 #daha yuksek daha korkak
+qR = 250
+eR = 80
+wR = 250
+rR = 150
 
 messi = Popen("./main", stdin=PIPE, stdout=PIPE)
 
@@ -21,6 +26,9 @@ def cout(command):
 
 def cin():
     return np.frombuffer(messi.stdout.read(4), np.int32)[0]
+
+def Q():
+    pass
 
 def mouseMove(x, y):
     cout(1)
@@ -43,17 +51,28 @@ def getImage():
     r = cin()
     l = cin()
     return np.frombuffer(messi.stdout.read(r*h*1*4), np.uint8).reshape(h,r,4)[22:,:w,[2, 1, 0, 3]]
-    
-def findArthas(rgb):
+
+def isHP(h,s,v):
+    return ((240 < h) or (h < 10)) and (s > 150) and (v > 130)
+
+def isHealing(h,s,v):
+    return ((240 < h) or (h < 10)) and (s > 150) and (v < 120) and (v > 80)
+
+def isBlack(h,s,v):
+    return (v < 70)
+
+def findEnemyHeroes(rgb):
     hsv = np.array(Image.fromarray(rgb).convert("HSV"))
     hue = hsv[:,:,0]
     sat = hsv[:,:,1]
     val = hsv[:,:,2]
 
-    red_mask = ((240 < hue) | (hue < 10)) & (sat > 90)
-    blk_mask = (val < 30)
+    HUE_MIN = 240
+    HUE_MAX = 10
+    SAT_MIN = 150
+    VAL_MIN = 130
 
-    mask = red_mask | blk_mask
+    mask = ((HUE_MIN < hue) | (hue < HUE_MAX)) & (sat > SAT_MIN) & (val > VAL_MIN)
 
     img = (mask * 255).astype(np.uint8)
 
@@ -61,54 +80,121 @@ def findArthas(rgb):
     def f(cnt):
         area = cv2.contourArea(cnt)
         x, y, w, h = cv2.boundingRect(cnt)
-        rect_area = w * h
-        if w > barW + 10 or w < barW - 10 or h > barH + 2 or h < barH - 2:
+        rect_area = (w-1) * (h-1)
+        if abs(x - windowW // 2) < 320 and y < 60:
+            # top bad
             return False
-        if float(area) / rect_area < .6:
+        if x > 800 and y > 430:
+            # minimap
             return False
-        if img[y:y+h, x:x+w].mean() < 200:
+        if h > barH + 1 or h < barH -1:
             return False
-        bar = np.average(rgb[y:y+h, x:x+w, :], axis=0)
-        hp = (bar[:, 0].astype(np.float) - bar[:, 1] / 2. - bar[:, 2] / 2. > 100).mean()
-        if hp < .02:
-            # Bardaki red orani
+        if float(area) < rect_area * .7:
+            # print("rect filter", x, y, cv2.boundingRect(cnt), area)
             return False
+
+        if x + barW > windowW or y + barH > windowH:
+            return False
+        if barW - w > barH:
+            bar_rest = rgb[y:y+barH, x+w:x+barW, :].astype(np.float)
+            bar_rest = np.average(bar_rest, axis=0)
+            ctr = 0
+            for i in range(bar_rest.shape[0]):
+                h, s, v = colorsys.rgb_to_hsv(*bar_rest[i,:3] / 255)
+                h *= 255
+                s *= 255
+                v *= 255
+                if isBlack(h,s,v) or isHP(h,s,v) or isHealing(h,s,v):
+                    ctr += 1
+            if float(ctr) / bar_rest.shape[0] < .8:
+                # print("rest_filter", x, y, float(ctr) / bar_rest.shape[0])
+                return False
         return True
     contours = list(filter(f, contours))
-    if 1:
-        print("c", len(contours))
-        for c in contours:
-            x, y, w, h = cv2.boundingRect(c)
-            bar = np.average(rgb[y:y+h, x:x+w, :], axis=0)
-            hp = (bar[:, 0].astype(np.float) - bar[:, 1] / 2. - bar[:, 2] / 2. > 100).mean()
-            print(windowX + x, windowY + y, w, h, hp)
+    # Remove overlapping
+    i = 0
+    while i < len(contours):
+        p = contours[i]
+        for j, q in enumerate(contours):
+            if i != j:
+                x1, y1, _, _ = cv2.boundingRect(p)
+                x2, y2, _, _ = cv2.boundingRect(q)
+                if abs(y1 - y2) < 2 and x1 - x2 < barW and x1 > x2:
+                    del contours[i]
+                    i -= 1
+                    break
+        i += 1
     if 0:
         img = np.array(Image.fromarray(img).convert("RGB"))
         cv2.drawContours(img, contours, -1, (0,255,0), 1)
         Image.fromarray(img).show()
-    if 1:
-        def dist(c):
-            x, y, w, h = cv2.boundingRect(c)
-            x = x + w // 2
-            y = y + h // 2
+        # Image.fromarray(rgb).show()
+    pos = []
+    for c in contours:
+        x, y, w, h = cv2.boundingRect(c)
+        pos.append((x + barW // 2, y + barH // 2))
+    cvpic = rgb[::2,::2,[2, 1, 0]]
+    for x, y in pos:
+        x //= 2
+        y //= 2
+        a = 3
+        cvpic[y-a:y+a,x-a:x+a,1] = 255
+    cv2.imshow('image', cvpic)
+    cv2.waitKey(1)
+    return pos
+
+def AI():
+    pos = findEnemyHeroes(getImage())
+    print(len(pos))
+    if len(pos) > 0:
+        def dist(p):
+            x, y = p
             dx = x - windowW // 2
             dy = y - (windowH // 2 - hanzoH)
-            return x, y, (dx ** 2 + dy ** 2) ** .5
-        contours.sort(key=lambda x: dist(x)[2])
-        if len(contours) > 0:
-            c = contours[0]
-            x, y, d = dist(c)
-            if d > hanzoR:
-                mouseMove(windowX + x, windowY + y + 50)
-                key(0)
-            else:
-                mouseRclick(windowX + windowW // 2 - 50, windowY + windowH // 2 - 27)
+            return (dx ** 2 + dy ** 2) ** .5
+        pos.sort(key=dist)
+        print(pos)
+        print("---------------------")
+        x, y = pos[0]
+        d = dist(pos[0])
+        if d < qR:
+            mouseMove(windowX + x, windowY + y + 70)
+            key(0xC)
+        if d < wR:
+            mouseMove(windowX + x, windowY + y + 70)
+            key(0xD)
+        if d < rR:
+            mouseMove(windowX + x, windowY + y + 70)
+            key(0xF)
+        if d > hanzoR:
+            mouseMove(windowX + x, windowY + y + 70)
+            key(0)
+        else:
+            mouseRclick(windowX + windowW // 2 - 200, windowY + windowH // 2 - 27)
+            if d < eR:
+                key(0xE)
+
+
+def unittests():
+    assert set(findEnemyHeroes(np.array(Image.open("tests/p1.png")))) == set([(796, 335), (618, 236)])
+
 cout(0x3fb)
+#unittests()
 mouseMove(windowX + windowW // 2, windowY + windowH // 2 - hanzoH)
-time.sleep(1)
+#time.sleep(3)
 while 1:
     # time.sleep(0.05)
-    findArthas(getImage())
-findArthas(getImage())
-# Image.fromarray(img).show()
+    AI()
 
+if 0:
+    findEnemyHeroes(np.array(Image.open("tests/p3.png")))
+#image = getImage()
+#Image.fromarray(image).save("game_image.png")
+#findEnemyHeroes(image)
+
+# TODO
+# - Target Location
+# - Exploration
+# - Shield and PoisonHP
+# - Minions
+# - Avoid Turrets
