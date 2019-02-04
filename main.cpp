@@ -107,9 +107,9 @@ void sleep(int micros) {
 int main() {
 	int cmd;
 	int windowId;
-	fread(&windowId, 4, 1, stdin);
+	std::cin >> windowId;
 	while (!feof(stdin)) {
-		fread(&cmd, 4, 1, stdin);
+		std::cin >> cmd;
 		if (cmd == 0) {  // Get image
 			 CGImageRef img = getImage(windowId);
 			//CGImageRef img = getFullscreen();
@@ -129,17 +129,15 @@ int main() {
 			CFRelease(rawData);	
 		} else if (cmd == 1) {  // Right click
 			int x, y;
-			fread(&x, 4, 1, stdin);
-			fread(&y, 4, 1, stdin);
+			std::cin >> x >> y;
 			move(x, y);
 		} else if (cmd == 2) {
 			int x, y;
-			fread(&x, 4, 1, stdin);
-			fread(&y, 4, 1, stdin);
+			std::cin >> x >> y;
 			rclick(x, y);
 		} else if (cmd == 3) {
 			int k;
-			fread(&k, 4, 1, stdin);
+			std::cin >> k;
 			key(k);
 		} else if (cmd == 4) {
 		} else if (cmd == 5) {

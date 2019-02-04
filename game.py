@@ -4,41 +4,78 @@ from PIL import Image
 import colorsys
 import time
 import cv2
+import random
+import requests
 
 windowX = 400
 windowY = 300
 windowW = 1047
 windowH = 605
+vallaX = windowW // 2
+vallaY = windowH // 2 - 30
 barW = 68
 barH = 6
-hanzoH = 132
-hanzoR = 150 #daha yuksek daha korkak
+barY = 80
+vallaR = 150 #daha yuksek daha korkak
 qR = 250
 eR = 80
 wR = 250
 rR = 150
 
+state = "attack"
+
 messi = Popen("./main", stdin=PIPE, stdout=PIPE)
 
 def cout(command):
-    messi.stdin.write(np.array(command, np.int32).tobytes())
+    messi.stdin.write((str(command) + "\n").encode())
     messi.stdin.flush()
 
 def cin():
     return np.frombuffer(messi.stdout.read(4), np.int32)[0]
 
-def Q():
-    pass
+def Q(x, y):
+    mouseMove(x, y)
+    key(0xC)
+
+def W(x, y):
+    mouseMove(x, y)
+    key(0xD)
+    
+def E(x, y):
+    mouseMove(x, y)
+    key(0xE)
+
+def R(x, y):
+    mouseMove(x, y)
+    key(0xF)
+
+def Attack(x, y):
+    mouseMove(x, y)
+    key(0)
+
+def Move(x, y):
+    x = min(max(x, 30), windowW - 30)
+    y = min(max(y, 30), windowH - 30)
+    cout(2)
+    cout(int(x + windowX))
+    cout(int(y + windowY))
+
+def Explore(dt):
+    pChange = 1
+    global lastdx, lastdy
+    if random.uniform(0,pChange) < dt:
+        dX = random.gauss(windowW/10, windowW/10)
+        dY = random.uniform(-windowW/10, windowW/10)
+        lastdx = max(-windowW/10, min(windowW/10, dX))
+        lastdy = max(-windowW/10, min(windowW/10, dY))
+    Move(vallaX + lastdx, vallaY + lastdy)
 
 def mouseMove(x, y):
+    x = min(max(x, 30), windowW - 30)
+    y = min(max(y, 30), windowH - 30)
     cout(1)
-    cout(x)
-    cout(y)
-
-def mouseRclick(x, y):
-    cout(2)
-    cout(x)
-    cout(y)
+    cout(int(x + windowX))
+    cout(int(y + windowY))
 
 def key(k):
     cout(3)
@@ -81,11 +118,14 @@ def findEnemyHeroes(rgb):
         area = cv2.contourArea(cnt)
         x, y, w, h = cv2.boundingRect(cnt)
         rect_area = (w-1) * (h-1)
-        if abs(x - windowW // 2) < 320 and y < 60:
-            # top bad
+        if abs(x - vallaX) < 320 and y < 60:
+            # top bar
             return False
-        if x > 800 and y > 430:
+        if x > 800 and y > 360:
             # minimap
+            return False
+        if abs(x - vallaX) < 200 and y > 520:
+            # skills
             return False
         if h > barH + 1 or h < barH -1:
             return False
@@ -132,59 +172,93 @@ def findEnemyHeroes(rgb):
     pos = []
     for c in contours:
         x, y, w, h = cv2.boundingRect(c)
-        pos.append((x + barW // 2, y + barH // 2))
-    cvpic = rgb[::2,::2,[2, 1, 0]]
-    for x, y in pos:
-        x //= 2
-        y //= 2
-        a = 3
-        cvpic[y-a:y+a,x-a:x+a,1] = 255
-    cv2.imshow('image', cvpic)
-    cv2.waitKey(1)
+        x = x + barW // 2 - (x - vallaX) // 8
+        y = y + barH // 2 + barY
+        pos.append((x, y))
     return pos
 
-def AI():
-    pos = findEnemyHeroes(getImage())
-    print(len(pos))
+lastdx = 0
+lastdy = 0
+def AI(dt):
+    global state
+    m = checkMessage()
+    if m:
+        print(m)
+        state = m
+    rgb = getImage()
+    pos = findEnemyHeroes(rgb)
+    cvpic = rgb[::3,::3,[2, 1, 0]]
+    a = 2
+    for x, y in pos:
+        x //= 3
+        y //= 3
+        cvpic[y-a:y+a,x-a:x+a,1] = 255
+    x = vallaX // 3
+    y = vallaY // 3
+    cvpic[y-a:y+a,x-a:x+a,1] = 255
+    cv2.imshow('prev', cvpic)
+    cv2.waitKey(1)
+    #print(len(pos))
     if len(pos) > 0:
         def dist(p):
             x, y = p
-            dx = x - windowW // 2
-            dy = y - (windowH // 2 - hanzoH)
+            dx = x - vallaX
+            dy = y - vallaY
             return (dx ** 2 + dy ** 2) ** .5
         pos.sort(key=dist)
         print(pos)
         print("---------------------")
         x, y = pos[0]
         d = dist(pos[0])
-        if d < qR:
-            mouseMove(windowX + x, windowY + y + 70)
-            key(0xC)
-        if d < wR:
-            mouseMove(windowX + x, windowY + y + 70)
-            key(0xD)
-        if d < rR:
-            mouseMove(windowX + x, windowY + y + 70)
-            key(0xF)
-        if d > hanzoR:
-            mouseMove(windowX + x, windowY + y + 70)
-            key(0)
+        if d < qR: # Q
+            Q(x, y)
+        if d < wR: # W
+            W(x, y)
+        if d < rR: # R
+            R(x, y)
+        if state == 'attack':
+            Attack(x, y)
+            if d > 2 * vallaR and d < 4 * vallaR: # chase with E
+                E(x, y)
+        elif state == 'kite':
+            if d > vallaR: # attack 
+                Attack(x, y)
+            else: 
+                Move(vallaX - 200, vallaY) # move back
+        elif state == 'retreat':
+            Move(2 * vallaX - x, 2 * vallaY - y) # move back
+            if d < eR: # run away with E
+                E(2 * vallaX - x, 2 * vallaY - y)
         else:
-            mouseRclick(windowX + windowW // 2 - 200, windowY + windowH // 2 - 27)
-            if d < eR:
-                key(0xE)
+            Explore(dt)
+    else:
+        Explore(dt)
 
+lastMessage = 0
+def checkMessage():
+    r = requests.get('http://akkas.scripts.mit.edu/HSBot/comm.html')
+    t, m = r.text.strip().split(" ")
+    t = int(t)
+    if t > lastMessage:
+        return m
+    else:
+        return None
 
 def unittests():
     assert set(findEnemyHeroes(np.array(Image.open("tests/p1.png")))) == set([(796, 335), (618, 236)])
 
-cout(0x3fb)
+cout(0x10ae)
 #unittests()
-mouseMove(windowX + windowW // 2, windowY + windowH // 2 - hanzoH)
-#time.sleep(3)
+mouseMove(0, 0)
+time.sleep(0)
+cv2.namedWindow('prev')
+cv2.moveWindow('prev', -50, 650)
+lastTime = time.time()
 while 1:
+    dt = time.time() - lastTime
     # time.sleep(0.05)
-    AI()
+    AI(dt)
+    lastTime += dt
 
 if 0:
     findEnemyHeroes(np.array(Image.open("tests/p3.png")))
@@ -193,7 +267,6 @@ if 0:
 #findEnemyHeroes(image)
 
 # TODO
-# - Target Location
 # - Exploration
 # - Shield and PoisonHP
 # - Minions
