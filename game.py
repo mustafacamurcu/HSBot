@@ -23,6 +23,7 @@ wR = 250
 rR = 150
 
 state = "attack"
+xstate = "right"
 
 messi = Popen("./main", stdin=PIPE, stdout=PIPE)
 
@@ -53,6 +54,9 @@ def Attack(x, y):
     mouseMove(x, y)
     key(0)
 
+def BStep():
+    key(11)
+
 def Move(x, y):
     x = min(max(x, 30), windowW - 30)
     y = min(max(y, 30), windowH - 30)
@@ -64,8 +68,22 @@ def Explore(dt):
     pChange = 1
     global lastdx, lastdy
     if random.uniform(0,pChange) < dt:
-        dX = random.gauss(windowW/10, windowW/10)
-        dY = random.uniform(-windowW/10, windowW/10)
+        mv = random.gauss(windowW/10, windowW/10)
+        stay = random.uniform(-windowW/10, windowW/10)
+        if xstate == 'left':
+            dX = -mv 
+            dY = stay
+        elif xstate == 'up':
+            dX = stay
+            dY = -mv
+        elif xstate == 'down':
+            dX = stay
+            dY = mv
+        elif xstate == 'right':
+            dX = mv
+            dY = stay
+        else:
+            print('abe becerememis')
         lastdx = max(-windowW/10, min(windowW/10, dX))
         lastdy = max(-windowW/10, min(windowW/10, dY))
     Move(vallaX + lastdx, vallaY + lastdy)
@@ -180,11 +198,7 @@ def findEnemyHeroes(rgb):
 lastdx = 0
 lastdy = 0
 def AI(dt):
-    global state
-    m = checkMessage()
-    if m:
-        print(m)
-        state = m
+    checkMessage()
     rgb = getImage()
     pos = findEnemyHeroes(rgb)
     cvpic = rgb[::3,::3,[2, 1, 0]]
@@ -225,6 +239,13 @@ def AI(dt):
                 Attack(x, y)
             else: 
                 Move(vallaX - 200, vallaY) # move back
+        elif state == 'bkite':
+            if d > vallaR: # attack 
+                Attack(x, y)
+            else: 
+                Move(vallaX - 200, vallaY) # move back
+            BStep()
+
         elif state == 'retreat':
             Move(2 * vallaX - x, 2 * vallaY - y) # move back
             if d < eR: # run away with E
@@ -236,21 +257,28 @@ def AI(dt):
 
 lastMessage = 0
 def checkMessage():
-    r = requests.get('http://akkas.scripts.mit.edu/HSBot/comm.html')
+    global state, xstate
+    r = requests.get('http://akkas.scripts.mit.edu/HSBot/comm1.html')
     t, m = r.text.strip().split(" ")
     t = int(t)
     if t > lastMessage:
-        return m
-    else:
-        return None
+        state = m
+    r = requests.get('http://akkas.scripts.mit.edu/HSBot/comm2.html')
+    t, m = r.text.strip().split(" ")
+    t = int(t)
+    if t > lastMessage:
+        xstate = m
+    print(state, xstate)
 
 def unittests():
     assert set(findEnemyHeroes(np.array(Image.open("tests/p1.png")))) == set([(796, 335), (618, 236)])
 
-cout(0x10ae)
+cout(0x2f6c)
 #unittests()
-mouseMove(0, 0)
-time.sleep(0)
+cout(1)
+cout(windowX)
+cout(windowY)
+time.sleep(3)
 cv2.namedWindow('prev')
 cv2.moveWindow('prev', -50, 650)
 lastTime = time.time()

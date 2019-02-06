@@ -111,7 +111,7 @@ int main() {
 	while (!feof(stdin)) {
 		std::cin >> cmd;
 		if (cmd == 0) {  // Get image
-			 CGImageRef img = getImage(windowId);
+			CGImageRef img = getImage(windowId);
 			//CGImageRef img = getFullscreen();
 			CFDataRef rawData = CGDataProviderCopyData(CGImageGetDataProvider(img));
 			UInt8* buf = (UInt8 *) CFDataGetBytePtr(rawData);
